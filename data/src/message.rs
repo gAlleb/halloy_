@@ -196,6 +196,7 @@ impl Message {
                 source::server::Kind::ReplyTopic
                     | source::server::Kind::MonitoredOnline
                     | source::server::Kind::MonitoredOffline
+                    | source::server::Kind::ChangeHost
             ) {
                 return false;
             }
@@ -803,9 +804,16 @@ fn target(
                     Some(Target::Channel { channel, source })
                 }
                 (target::Target::Query(query), Some(user)) => {
-                    let target = User::try_from(query.as_str()).ok()?;
+                    let query = if user.nickname() == *our_nick {
+                        // Notice from ourself, from another client.
+                        query
+                    } else {
+                        // Notice from conversation partner.
+                        target::Query::parse(user.as_str(), chantypes, statusmsg, casemapping)
+                            .ok()?
+                    };
 
-                    (target.nickname() == *our_nick).then(|| Target::Query {
+                    Some(Target::Query {
                         query,
                         source: source(user),
                     })
